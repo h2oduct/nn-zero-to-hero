@@ -104,13 +104,14 @@ class MultiHeadAttention(nn.Module):
         out = self.proj(out)
         return out
 
+
 class FeedForward(nn.Module):
     """a simple linear layer
-    forllowed by non-linearity"""
+    followed by non-linearity"""
+
     def __init__(self, n_embd):
         super().__init__()
         self.net = nn.Sequential(
-
             nn.Linear(n_embd, 4 * n_embd),
             nn.ReLU(),
             nn.Linear(4 * n_embd, n_embd),
@@ -119,12 +120,13 @@ class FeedForward(nn.Module):
     def forward(self, x):
         return self.net(x)
 
+
 class Block(nn.Module):
     def __init__(self, n_embd, num_heads):
         super().__init__()
         head_size = n_embd // num_heads
         self.sa_head = MultiHeadAttention(num_heads, head_size)
-        self.ffwd = FeedForward(n_embd) # (?? n_embd)
+        self.ffwd = FeedForward(n_embd)  # (?? n_embd)
         self.ln1 = nn.LayerNorm(n_embd)
         self.ln2 = nn.LayerNorm(n_embd)
 
@@ -132,6 +134,7 @@ class Block(nn.Module):
         x = x + self.sa_head(self.ln1(x))
         x = x + self.ffwd(self.ln2(x))
         return x
+
 
 class BigramLanguageModel(nn.Module):
     def __init__(self):
