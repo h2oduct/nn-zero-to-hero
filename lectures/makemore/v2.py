@@ -15,6 +15,9 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 eval_iters = 200
 n_embd = 32
 epsilon = 1e-5
+dropout = 0.2
+n_layers = 8
+num_heads = 4
 
 # --------------------------------------
 # !wget https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt
@@ -74,6 +77,7 @@ class Head(nn.Module):
         self.query = nn.Linear(n_embd, head_size, bias=False)
         self.value = nn.Linear(n_embd, head_size, bias=False)
         self.register_buffer("tril", torch.tril(torch.ones(block_size, block_size)))
+        self.dropout = nn.Dropout(dropout)
 
     def __call__(self, x):
         B, T, C = x.shape  # (B, T, C)
@@ -87,6 +91,7 @@ class Head(nn.Module):
         # using softmax
         wei = wei.masked_fill(self.tril[:T, :T] == 0, float("-inf"))
         wei = F.softmax(wei, dim=-1)
+        wei = self.dropout(wei)
 
         v = self.value(x)
         out = wei @ v
@@ -115,6 +120,7 @@ class FeedForward(nn.Module):
             nn.Linear(n_embd, 4 * n_embd),
             nn.ReLU(),
             nn.Linear(4 * n_embd, n_embd),
+            nn.Dropout(dropout),
         )
 
     def forward(self, x):
@@ -141,12 +147,16 @@ class BigramLanguageModel(nn.Module):
         super().__init__()
         self.token_embedding_table = nn.Embedding(vocab_size, n_embd)
         self.position_embedding_table = nn.Embedding(block_size, n_embd)
+        # self.blocks = nn.Sequential(
+        #     Block(n_embd, num_heads=4),
+        #     Block(n_embd, num_heads=4),
+        #     Block(n_embd, num_heads=4),
+        #     nn.LayerNorm(n_embd),
+        # )
         self.blocks = nn.Sequential(
-            Block(n_embd, num_heads=4),
-            Block(n_embd, num_heads=4),
-            Block(n_embd, num_heads=4),
-            nn.LayerNorm(n_embd),
+            *[Block(n_embd, num_heads=num_heads) for _ in range(n_layers)]
         )
+        self.ln_f = nn.LayerNorm(n_embd)
         self.lm_head = nn.Linear(n_embd, vocab_size)
 
     def forward(self, idx, targets=None):
